@@ -1,38 +1,53 @@
 
 <template>
-  <div class="container">
-    <div class="border">
-      <h3>Your Offer And Ice Candidates</h3>
-      <button @click="createOfferForRemotePeer">Create offer and ice candidates</button>
-      <p>{{ yourCompleteOffer }}</p>
-    </div>
-    <div class="border">
-      <h3>Received Offer And Ice Candidate</h3>
+  <div v-if="!connected">
+    <div class="container">
+      <div class="border">
+        <h3>Your Offer And Ice Candidates</h3>
+        <button @click="createOfferForRemotePeer">Create offer and ice candidates</button>
+        <p>{{ yourCompleteOffer }}</p>
+      </div>
+      <div class="border">
+        <h3>Received Offer And Ice Candidate</h3>
 
-      <label>Input</label>
-      <input type="text" v-model="recievedOffer" />
-      <h4>Recieved offer</h4>
-      <p> {{ recievedOffer }}</p>
-      <h4>Your response</h4>
+        <label>Input</label>
+        <input type="text" v-model="recievedOffer" />
+        <h4>Recieved offer</h4>
+        <p> {{ recievedOffer }}</p>
+        <h4>Your response</h4>
 
-      <p>{{ yourCompleteAnswer }}</p>
-      <button @click="receiveOfferFromRemotePeer">Receive offer from remote peer</button>
+        <p>{{ yourCompleteAnswer }}</p>
+        <button @click="receiveOfferFromRemotePeer">Receive offer from remote peer</button>
+      </div>
+      <div class="border">
+        <h3>Handle Answer From Remote Peer</h3>
+        <input v-model="answerFromRemotePeer" />
+        <p>{{ answerFromRemotePeer }}</p>
+        <button @click="handleAnswerFromRemotePeer">Handle answer</button>
+
+      </div>
     </div>
-    <div class="border">
-      <h3>Handle Answer From Remote Peer</h3>
-      <input v-model="answerFromRemotePeer" />
-      <p>{{ answerFromRemotePeer }}</p>
-      <button @click="handleAnswerFromRemotePeer">Handle answer</button>
+  </div>
+  <div v-else>
+    <input v-model="message" type="text" />
+    <button @click="sendMessage">Send message</button>
+    <div>
+      <ul>
+        <li v-for="item in messages">
+          {{ item.message }}
+        </li>
+      </ul>
 
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, computed } from 'vue';
+import { onMounted, ref, computed, Ref } from 'vue';
 
 
 let pc: RTCPeerConnection;
+let dataChannel: RTCDataChannel;
 const recievedOffer = ref('');
 const recievedIceCandidate = ref('');
 const hostName = ref('');
@@ -41,6 +56,12 @@ const yourOffer = ref('');
 const answerFromRemotePeer = ref('');
 const yourIceCandidate: any = ref([]);
 const yourResponse = ref('');
+const message = ref('');
+const connected = ref(false);
+interface Message {
+  message: String
+}
+const messages: Ref<Message[]> = ref([]);
 
 const yourCompleteOffer = computed(() => {
   return {
@@ -57,19 +78,23 @@ async function createRTCPeerConnection() {
     iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
   };
   const pc = new RTCPeerConnection(config);
-  const dataChannel = pc.createDataChannel("myDataChannel");
+  dataChannel = pc.createDataChannel("myDataChannel");
 
   // Set up event listeners for the data channel
   dataChannel.onmessage = (event) => {
-    console.log(`Received message: ${event.data}`);
+    console.log('message recieved', event.data);
+    messages.value.push({ message: `Received message: ${event.data}` });
   };
 
   dataChannel.onopen = () => {
     console.log("Data channel is open and ready to use");
+    connected.value = true;
   };
 
   dataChannel.onclose = () => {
     console.log("Data channel has been closed");
+    connected.value = false;
+
   };
 
   // // Set up ICE gathering
@@ -93,15 +118,12 @@ async function createOfferForRemotePeer() {
 
   yourOffer.value = offerString;
 }
-
-
-
 async function receiveOfferFromRemotePeer() {
   const offerString = recievedOffer.value; // get the value of the text input field containing the offer string
   const parsedTotalOffer = JSON.parse(offerString); // convert the offer string to an offer object
   const { offer, iceCandidates } = parsedTotalOffer
   // Set up the data channel on the remote peer's RTCPeerConnection object
-  const dataChannel = pc.createDataChannel("myDataChannel");
+  dataChannel = pc.createDataChannel("myDataChannel");
   dataChannel.onmessage = (event) => {
     console.log(`Received message: ${event.data}`);
   };
@@ -140,7 +162,13 @@ async function handleAnswerFromRemotePeer() {
   }));
 }
 
+function sendMessage() {
+  console.log(dataChannel);
+  dataChannel.send(message.value);
+  messages.value.push({ message: `Sent message: ${message.value}` })
+  message.value = '';
 
+}
 onMounted(async () => {
   pc = await createRTCPeerConnection();
 
