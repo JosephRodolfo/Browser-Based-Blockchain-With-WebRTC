@@ -74,7 +74,6 @@ const yourCompleteAnswer = computed(() => {
   }
 })
 async function createRTCPeerConnection() {
-  console.log('peer and datachannel created');
   const config = {
     iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
   };
@@ -82,7 +81,6 @@ async function createRTCPeerConnection() {
   dataChannel = pc.createDataChannel("myDataChannel", { negotiated: true, id: 0 });
   // Set up event listeners for the data channel
   dataChannel.onmessage = (event) => {
-    console.log('message recieved', event.data);
     messages.value.push({ message: `Received message: ${event.data}` });
   };
 
@@ -152,8 +150,6 @@ async function handleAnswerFromRemotePeer() {
 }
 
 async function sendMessage() {
-  console.log('Sending message:', message.value);
-  console.log(dataChannel)
   if (dataChannel.readyState === "open") {
     try {
       dataChannel.send(message.value);
