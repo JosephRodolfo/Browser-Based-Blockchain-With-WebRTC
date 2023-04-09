@@ -2,34 +2,21 @@
 <template>
   <div class="container">
     <div class="border">
-      <h3>Your Offer</h3>
-      <button @click="createOfferForRemotePeer">Create Offer</button>
-      <p>{{ yourOffer }}</p>
+      <h3>Your Offer And Ice Candidates</h3>
+      <button @click="createOfferForRemotePeer">Create offer and ice candidates</button>
+      <p>{{ yourCompleteOffer }}</p>
     </div>
     <div class="border">
-      <h3>Received Offer</h3>
+      <h3>Received Offer And Ice Candidate</h3>
 
-      <label>Offer input</label>
+      <label>Input</label>
       <input type="text" v-model="recievedOffer" />
       <h4>Recieved offer</h4>
       <p> {{ recievedOffer }}</p>
       <h4>Your response</h4>
 
-      <p>{{ yourResponse }}</p>
+      <p>{{ yourCompleteAnswer }}</p>
       <button @click="receiveOfferFromRemotePeer">Receive offer from remote peer</button>
-    </div>
-    <div class="border">
-      <h3>Your Ice Candidate</h3>
-      <p> {{ yourIceCandidate }}</p>
-      <!-- <button @click="createIceCandidate">Create ice candidate</button> -->
-    </div>
-    <div class="border">
-      <h3>Receive Ice Candidate</h3>
-      <label>Ice candidate input</label>
-      <input type="text" v-model="recievedIceCandidate" />
-      <p> {{ recievedIceCandidate }}</p>
-
-      <!-- <button @click="recieveIceCandidate">Create ice candidate</button> -->
     </div>
     <div class="border">
       <h3>Handle Answer From Remote Peer</h3>
@@ -42,7 +29,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { onMounted, ref, computed } from 'vue';
 
 
 let pc: RTCPeerConnection;
@@ -54,6 +41,17 @@ const yourOffer = ref('');
 const answerFromRemotePeer = ref('');
 const yourIceCandidate: any = ref([]);
 const yourResponse = ref('');
+
+const yourCompleteOffer = computed(() => {
+  return {
+    iceCandidates: yourIceCandidate.value, offer: yourOffer.value,
+  }
+});
+const yourCompleteAnswer = computed(() => {
+  return {
+    iceCandidates: yourIceCandidate.value, offer: yourResponse.value,
+  }
+})
 async function createRTCPeerConnection() {
   const config = {
     iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
@@ -78,9 +76,6 @@ async function createRTCPeerConnection() {
   pc.onicecandidate = async (event) => {
     if (event.candidate) {
       yourIceCandidate.value.push(JSON.stringify(event.candidate));
-      // Add the ICE candidate to the connection's RTCIceCandidate object
-      // pc.addIceCandidate(new RTCIceCandidate(event.candidate))
-      //   .catch((error) => console.error(`Failed to add ICE candidate: ${error}`));
     } else {
       console.log("ICE gathering complete");
     }
@@ -103,11 +98,8 @@ async function createOfferForRemotePeer() {
 
 async function receiveOfferFromRemotePeer() {
   const offerString = recievedOffer.value; // get the value of the text input field containing the offer string
-  const iceCandidateString = recievedIceCandidate.value;
-  const parsedOffer = JSON.parse(offerString); // convert the offer string to an offer object
-  const parsedCandidate = JSON.parse(iceCandidateString); // convert the candidate string to a candidate object
-  console.log(parsedOffer);
-
+  const parsedTotalOffer = JSON.parse(offerString); // convert the offer string to an offer object
+  const { offer, iceCandidates } = parsedTotalOffer
   // Set up the data channel on the remote peer's RTCPeerConnection object
   const dataChannel = pc.createDataChannel("myDataChannel");
   dataChannel.onmessage = (event) => {
@@ -121,8 +113,8 @@ async function receiveOfferFromRemotePeer() {
   };
 
   // Add the received ice candidate to the remote peer's RTCPeerConnection object
-  await pc.setRemoteDescription(parsedOffer); // apply the offer to the remote peer's RTCPeerConnection object
-  parsedCandidate.forEach((candidate: string) => {
+  await pc.setRemoteDescription(JSON.parse(offer)); // apply the offer to the remote peer's RTCPeerConnection object
+  iceCandidates.forEach((candidate: string) => {
     pc.addIceCandidate(JSON.parse(candidate));
 
   })
@@ -137,11 +129,12 @@ async function receiveOfferFromRemotePeer() {
 }
 
 async function handleAnswerFromRemotePeer() {
-  const answerString = answerFromRemotePeer.value;
-  const parsedAnswer = JSON.parse(answerString);
-  await pc.setRemoteDescription(parsedAnswer);
+  const offerString = answerFromRemotePeer.value; // get the value of the text input field containing the offer string
+  const parsedTotalAnswer = JSON.parse(offerString); // convert the offer string to an offer object
+  const { offer, iceCandidates } = parsedTotalAnswer
+  await pc.setRemoteDescription(JSON.parse(offer));
 
-  Promise.allSettled(yourIceCandidate.value.map(async (candidate: string) => {
+  Promise.allSettled(iceCandidates.map(async (candidate: string) => {
     await pc.addIceCandidate(new RTCIceCandidate(JSON.parse(candidate)))
 
   }));
