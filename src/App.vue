@@ -1,45 +1,45 @@
 
 <template>
   <div v-if="!connected">
-    <div class="container">
-      <div class="border">
-        <h3>Your Offer And Ice Candidates</h3>
-        <button @click="createOfferForRemotePeer">Create offer and ice candidates</button>
-        <p>{{ yourCompleteOffer }}</p>
-      </div>
-      <div class="border">
-        <h3>Received Offer And Ice Candidate</h3>
-
-        <label>Input</label>
-        <input type="text" v-model="recievedOffer" />
-        <h4>Recieved offer</h4>
-        <p> {{ recievedOffer }}</p>
-        <h4>Your response</h4>
-
-        <p>{{ yourCompleteAnswer }}</p>
-        <button @click="receiveOfferFromRemotePeer">Receive offer from remote peer</button>
-      </div>
-      <div class="border">
-        <h3>Handle Answer From Remote Peer</h3>
-        <input v-model="answerFromRemotePeer" />
-        <p>{{ answerFromRemotePeer }}</p>
-        <button @click="handleAnswerFromRemotePeer">Handle answer</button>
-
-      </div>
+  <div class="container">
+    <div class="border">
+      <h3>Your Offer And Ice Candidates</h3>
+      <button @click="createOfferForRemotePeer">Create offer and ice candidates</button>
+      <p>{{ yourCompleteOffer }}</p>
     </div>
-  </div>
-  <div v-else>
-    <input v-model="message" type="text" />
-    <button @click="sendMessage">Send message</button>
-    <div>
-      <ul>
-        <li v-for="item in messages">
-          {{ item.message }}
-        </li>
-      </ul>
+    <div class="border">
+      <h3>Received Offer And Ice Candidate</h3>
+
+      <label>Input</label>
+      <input type="text" v-model="recievedOffer" />
+      <h4>Recieved offer</h4>
+      <p> {{ recievedOffer }}</p>
+      <h4>Your response</h4>
+
+      <p>{{ yourCompleteAnswer }}</p>
+      <button @click="receiveOfferFromRemotePeer">Receive offer from remote peer</button>
+    </div>
+    <div class="border">
+      <h3>Handle Answer From Remote Peer</h3>
+      <input v-model="answerFromRemotePeer" />
+      <p>{{ answerFromRemotePeer }}</p>
+      <button @click="handleAnswerFromRemotePeer">Handle answer</button>
 
     </div>
   </div>
+</div>
+<div v-else>
+  <input v-model="message" type="text" />
+  <button @click="sendMessage">Send message</button>
+  <div>
+    <ul>
+      <li v-for="item in messages">
+        {{ item.message }}
+      </li>
+    </ul>
+
+  </div>
+</div>
 </template>
 
 <script setup lang="ts">
@@ -74,12 +74,12 @@ const yourCompleteAnswer = computed(() => {
   }
 })
 async function createRTCPeerConnection() {
+  console.log('peer and datachannel created');
   const config = {
     iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
   };
   const pc = new RTCPeerConnection(config);
-  dataChannel = pc.createDataChannel("myDataChannel");
-
+  dataChannel = pc.createDataChannel("myDataChannel", { negotiated: true, id: 0 });
   // Set up event listeners for the data channel
   dataChannel.onmessage = (event) => {
     console.log('message recieved', event.data);
@@ -89,6 +89,9 @@ async function createRTCPeerConnection() {
   dataChannel.onopen = () => {
     console.log("Data channel is open and ready to use");
     connected.value = true;
+  };
+  dataChannel.onerror = (e) => {
+    console.log('error', e)
   };
 
   dataChannel.onclose = () => {
@@ -110,7 +113,6 @@ async function createRTCPeerConnection() {
 }
 
 async function createOfferForRemotePeer() {
-  pc = await createRTCPeerConnection();
 
   const offer = await pc.createOffer();
   await pc.setLocalDescription(offer);
@@ -122,19 +124,6 @@ async function receiveOfferFromRemotePeer() {
   const offerString = recievedOffer.value; // get the value of the text input field containing the offer string
   const parsedTotalOffer = JSON.parse(offerString); // convert the offer string to an offer object
   const { offer, iceCandidates } = parsedTotalOffer
-  // Set up the data channel on the remote peer's RTCPeerConnection object
-  dataChannel = pc.createDataChannel("myDataChannel");
-  dataChannel.onmessage = (event) => {
-    console.log(`Received message: ${event.data}`);
-  };
-  dataChannel.onopen = () => {
-    console.log("Data channel is open and ready to use");
-  };
-  dataChannel.onclose = () => {
-    console.log("Data channel has been closed");
-  };
-
-  // Add the received ice candidate to the remote peer's RTCPeerConnection object
   await pc.setRemoteDescription(JSON.parse(offer)); // apply the offer to the remote peer's RTCPeerConnection object
   iceCandidates.forEach((candidate: string) => {
     pc.addIceCandidate(JSON.parse(candidate));
@@ -156,24 +145,30 @@ async function handleAnswerFromRemotePeer() {
   const { offer, iceCandidates } = parsedTotalAnswer
   await pc.setRemoteDescription(JSON.parse(offer));
 
-  Promise.allSettled(iceCandidates.map(async (candidate: string) => {
+  Promise.all(iceCandidates.map(async (candidate: string) => {
     await pc.addIceCandidate(new RTCIceCandidate(JSON.parse(candidate)))
 
   }));
 }
 
-function sendMessage() {
-  console.log(dataChannel);
-  dataChannel.send(message.value);
-  messages.value.push({ message: `Sent message: ${message.value}` })
-  message.value = '';
+async function sendMessage() {
+  console.log('Sending message:', message.value);
+  console.log(dataChannel)
+  if (dataChannel.readyState === "open") {
+    try {
+      dataChannel.send(message.value);
+      messages.value.push({ message: `Sent message: ${message.value}` });
 
+    } catch (error) {
+      console.error('Error sending message:', error);
+    }
+  } else {
+    console.error('Data channel is not open');
+  }
 }
+
 onMounted(async () => {
   pc = await createRTCPeerConnection();
-
-  hostName.value = '127.0.0.1';
-  port.value = window.location.port;
 });
 
 </script>
@@ -190,6 +185,10 @@ p {
   max-width: 20em;
   word-wrap: break-word;
   font-size: 8px;
+}
+
+ul {
+  list-style: none;
 }
 
 .container {
