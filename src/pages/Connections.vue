@@ -50,11 +50,11 @@
   <script setup lang="ts">
   import { onMounted, ref, Ref } from 'vue';
   import { WebRtc } from '../services/webrtc';
-  
-  let webRtcInstance: Ref<WebRtc> = ref(new WebRtc)
+  import node from '../node';
+  let webRtcInstance: Ref<WebRtc> = ref(node.webRtc)
   
   onMounted(async () => {
-    await webRtcInstance.value.createRTCPeerConnection();
+    await webRtcInstance.value.createRTCPeerConnection(node);
   });
   
   </script>

@@ -33,7 +33,7 @@ export class Transaction {
   }
 
   public isValid(): boolean {
-    if (this.fromAddress === null) return true;
+    if (this.fromAddress === 'system') return true;
 
     if (!this.signature || this.signature.length === 0) {
       throw new Error('No signature found in this transaction');

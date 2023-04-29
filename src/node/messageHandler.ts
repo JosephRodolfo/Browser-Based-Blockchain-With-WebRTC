@@ -1,4 +1,4 @@
-import { Node } from "./node";
+import { BlockchainNode } from "./node";
 import { Block } from "../blockchain/block";
 import { Blockchain } from "../blockchain/blockchain";
 import { Transaction } from "../blockchain/transaction";
@@ -21,32 +21,62 @@ export interface Message {
 }
 
 export class MessageHandler {
-  private node: Node;
 
-  constructor(node: Node) {
-    this.node = node;
+
+  constructor() {
   }
 
-  public handleMessage(message: Message, peerId: string): void {
+  public handleMessage(node: BlockchainNode, message: Message, peerId: string): void {
+    const parsed = JSON.parse(message.data as string);
+
+    console.log(message.type);
+    const isPeerBehind = parsed.length < node.blockchain.chain.length;
     switch (message.type) {
       case MessageType.QUERY_LATEST:
-        this.node.handleQueryLatest(peerId, MessageType.RESPONSE_LATEST);
+        if (!isPeerBehind) {
+          break
+        } else
+          console.log('QUERY_LATEST_RECIEVED');
+        node.handleQueryLatest(peerId, MessageType.RESPONSE_LATEST);
         break;
       case MessageType.QUERY_ALL:
-        this.node.handleQueryAll(peerId, MessageType.RESPONSE_BLOCKCHAIN);
+        if (!isPeerBehind) {
+          break;
+        } else
+          console.log('QUERY ALL RECIEVED');
+
+        node.handleQueryAll(peerId, MessageType.RESPONSE_BLOCKCHAIN);
         break;
       case MessageType.RESPONSE_BLOCKCHAIN:
-        this.node.handleBlockchainResponse(peerId, message.data as Blockchain);
-        break;
-        case MessageType.RESPONSE_LATEST:
-          this.node.handleResponseLatest(peerId, message.data as Block);
+        console.log('RESPONSE_BLOCKCHAIN RECIEVED', isPeerBehind);
+
+        if (isPeerBehind) {
           break;
-        case MessageType.QUERY_MISSING_BLOCKS:
-          this.node.handleQueryMissingBlocks(peerId, message.data as string, MessageType.RESPONSE_MISSING_BLOCKS);
+        } else
+          console.log('RESPONSE_BLOCKCHAIN RECIEVED');
+
+        node.handleBlockchainResponse(peerId, message.data as string);
         break;
-        case MessageType.RESPONSE_MISSING_BLOCKS:
-          this.node.handleResponseMissingBlocks(peerId, message.data as Block[]);
+      case MessageType.RESPONSE_LATEST:
+        if (isPeerBehind) {
           break;
+        } else
+          console.log('RESPONSE_LATEST_RECIEVED');
+
+        node.handleResponseLatest(peerId, message.data as string);
+        break;
+      case MessageType.QUERY_MISSING_BLOCKS:
+        if (!isPeerBehind) {
+          break;
+        } else
+          node.handleQueryMissingBlocks(peerId, message.data as string, MessageType.RESPONSE_MISSING_BLOCKS);
+        break;
+      case MessageType.RESPONSE_MISSING_BLOCKS:
+        if (isPeerBehind) {
+          break;
+        } else
+          node.handleResponseMissingBlocks(peerId, message.data as string);
+        break;
       // case MessageType.INVALID_TRANSACTION:
       //   this.node.handleInvalidTransaction(message.data as Transaction, peerId);
       //   break;

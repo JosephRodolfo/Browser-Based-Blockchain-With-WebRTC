@@ -2,14 +2,14 @@ import { Block } from "./block";
 import { Transaction } from "./transaction";
 
 export class Blockchain {
-    public readonly chain: Block[];
+    public chain: Block[];
     readonly difficulty: number;
     public miningReward: number;
     public pendingTransactions: Transaction[];
 
 
     constructor(difficulty: number) {
-        this.chain = [this.createGenesisBlock()];
+        this.chain = [];
         this.difficulty = difficulty;
         this.miningReward = 0;
         this.pendingTransactions = [];
@@ -19,13 +19,22 @@ export class Blockchain {
         return new Block(new Date(), [], "0");
     }
 
-    public getLatestBlock(): Block {
-        return this.chain[this.chain.length - 1];
+    public getLatestBlock(): Block | null {
+        if (this.chain.length > 0) {
+          return this.chain[this.chain.length - 1];
+        } else {
+          return null;
+        }
+      }
+      
+    public addBlock(newBlock: Block): void {
+        newBlock.previousHash = this.getLatestBlock()?.hash || '0';
+        newBlock.mineBlock(this.difficulty);
+        this.chain.push(newBlock);
     }
 
-    public addBlock(newBlock: Block): void {
-        newBlock.previousHash = this.getLatestBlock().hash;
-        newBlock.mineBlock(this.difficulty);
+    public addBlockFromSync(newBlock: Block): void {
+        newBlock.previousHash = this.getLatestBlock()?.hash || '0';
         this.chain.push(newBlock);
     }
 
@@ -33,7 +42,7 @@ export class Blockchain {
         if (!transaction.isValid()) {
             throw new Error("Invalid transaction");
         }
-        this.getLatestBlock().transactions.push(transaction);
+        this.getLatestBlock()!.transactions.push(transaction);
     }
 
     public isChainValid(): boolean {
@@ -52,8 +61,9 @@ export class Blockchain {
 
         return true;
     }
-    public isChainSynced(latestBlock: Block): boolean {
+    public isChainSynced(latestBlock: Block | null): boolean {
         const lastBlock = this.getLatestBlock();
+        if (!latestBlock || !lastBlock) return false;
         return latestBlock.hash === lastBlock.hash && latestBlock.validate(this.difficulty);
       }
       

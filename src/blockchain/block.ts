@@ -8,12 +8,12 @@ export class Block {
   public hash: string;
   public nonce: number;
 
-  constructor(timestamp: Date, transactions: any[], previousHash = "") {
+  constructor(timestamp: Date, transactions: Transaction[], previousHash = "0") {
     this.timestamp = timestamp;
-    this.transactions = [];
+    this.transactions = transactions;
     this._previousHash = previousHash;
-    this.hash = this.calculateHash();
     this.nonce = 0;
+    this.hash = this.calculateHash();
   }
 
   public get previousHash(): string {
@@ -28,7 +28,7 @@ export class Block {
   public calculateHash(): string {
     return SHA256(
       this.previousHash +
-        this.timestamp +
+        JSON.stringify(this.timestamp) +
         JSON.stringify(this.transactions) +
         this.nonce
     ).toString();
@@ -41,33 +41,38 @@ export class Block {
       this.nonce++;
       this.hash = this.calculateHash();
     }
-    console.log(`Block mined: ${this.hash}`);
+    // console.log(`Block mined: ${this.hash}`);
   }
   public validate(difficulty: number): boolean {
     // Validate the block
     const hash = this.calculateHash();
     if (hash !== this.hash) {
       // The block's hash is incorrect
+      console.log('hash fails');
       return false;
     }
 
     if (this.transactions.some(tx => !tx.isValid())) {
+      console.log('transactions failed');
       // A transaction in the block is invalid
       return false;
     }
 
-    if (this.previousHash !== this.hash) {
-      // The previous block's hash does not match
-      return false;
-    }
+    // if (this.previousHash !== this.hash) {
+    //   console.log('previous hash failed');
+    //   // The previous block's hash does not match
+    //   return false;
+    // }
 
     if (this.timestamp <= new Date(this.timestamp.getTime() - 60000)) {
-      // The block's timestamp is invalid (more than 1 minute in the past)
+      console.log('timestamp failed ');
       return false;
     }
 
     const hashPrefix = '0'.repeat(difficulty);
     if (!this.hash.startsWith(hashPrefix)) {
+      console.log('difficulty failed failed');
+
       // The block's difficulty is invalid
       return false;
     }

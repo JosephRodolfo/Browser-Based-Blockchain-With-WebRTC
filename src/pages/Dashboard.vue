@@ -14,7 +14,7 @@
 
       <ul>
         <li>Hash: {{ item.hash }}</li>
-        <li>Index: {{ blocks.length + index }}</li>
+        <li>Index: {{ index }}</li>
 
         <!-- <li>Nonce: {{ item.nonce }}</li>
         <li>Transactions: {{ item.transactions }}</li>
@@ -29,31 +29,41 @@ import { Ref, ref } from '@vue/reactivity';
 import node from '../node/index'
 import { Block } from '../blockchain/block';
 import { computed, onMounted } from 'vue';
-let blocks: Ref<Block[]> = ref([]);
+let blocks: Ref<Block[] | null> = ref(null);
 let showBlocks = ref(true);
 let mining = ref(false);
 
 const lastFiveBlocks = computed(() => {
-  if (blocks.value.length < 6) return blocks.value;
-  return blocks.value.slice(blocks.value.length - 6, blocks.value.length - 1)
+  if (!blocks.value) return;
+  if (blocks.value!.length < 6) return blocks.value || [];
+  // return blocks.value!.slice(blocks.value!.length - 6, blocks.value!.length - 1);
+  return blocks.value;
 })
 
 
 let x: any;
 onMounted(() => {
-  if (node.blockchain) blocks.value = [...node.blockchain!.chain];
+  blocks.value = node.blockchain.chain;
+  node.nodeControlFlow();
 })
 
 function toggleBlocks() {
   showBlocks.value = !showBlocks.value;
-  ;
 }
 function startMining() {
 
-  x = setInterval(() => {
-    node.mineBlock();
-    blocks.value.push(node.blockchain!.chain[node.blockchain!.chain.length - 1]);
-  }, 1000);
+  if (node.blockchain.chain.length === 0) {
+    const genesisBlock = node.blockchain.createGenesisBlock();
+    node.blockchain.chain.push(genesisBlock);
+    blocks.value = [genesisBlock];
+  } 
+
+    x = setInterval(() => {
+      node.mineBlock();
+      blocks.value = [...node.blockchain.chain];
+
+    }, 1000);
+
 }
 
 function toggleMining() {

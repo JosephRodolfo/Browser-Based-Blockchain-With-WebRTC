@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { Message, MessageType } from '../node/messageHandler';
+import { BlockchainNode } from '../node/node';
 
 
 export class WebRtc {
@@ -45,7 +46,7 @@ export class WebRtc {
     }
 
 
-    async createRTCPeerConnection() {
+    async createRTCPeerConnection(node: BlockchainNode) {
         const config = {
             iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
         };
@@ -54,9 +55,11 @@ export class WebRtc {
         const dataChannel = this.pc.createDataChannel("myDataChannel", { negotiated: true, id: 0 });
 
         dataChannel.onmessage = (event) => {
-            this.messages.push({ data: `Received message: ${event.data}`, type: MessageType.TEXT_MESSAGE });
-            this.messageReceivedCallback( {data: `Received message: ${event.data}`, type: MessageType.TEXT_MESSAGE })
+            let parsed = JSON.parse(event.data);
+            this.messages.push({ data: `Received message: ${parsed.data}`, type: parsed.type });
+            node.messageHandler.handleMessage(node, {data: parsed.data, type: parsed.type }, peerId)
         };
+
 
         dataChannel.onopen = () => {
             this.peers.push({
@@ -80,8 +83,8 @@ export class WebRtc {
 
         };
 
-        this.pc.onicecandidate = async (event) => {
-            if (event.candidate) {
+         this.pc.onicecandidate = async (event) => {
+             if (event.candidate) {
                 this.yourIceCandidate.push(JSON.stringify(event.candidate));
             } else {
                 console.log("ICE gathering complete");
@@ -91,6 +94,7 @@ export class WebRtc {
     async createOfferForRemotePeer() {
         const offer = await this.pc!.createOffer();
         await this.pc!.setLocalDescription(offer);
+    
         const offerString = JSON.stringify(offer);
         this.yourOffer = offerString;
     }
@@ -174,4 +178,7 @@ export class WebRtc {
  export interface Peer {
      id: string;
      dataChannel: RTCDataChannel;
-}
+ }
+
+
+
