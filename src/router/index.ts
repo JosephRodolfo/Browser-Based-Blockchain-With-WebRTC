@@ -6,7 +6,7 @@ const routes = [
   {
     path: '/connections',
     name: 'Connections',
-    component: Connections
+    component: Connections,
   },
   {
     path: '/dashboard',

@@ -26,13 +26,14 @@
 
 <script setup lang="ts">
 import { Ref, ref } from '@vue/reactivity';
-import node from '../node/index'
+import { useNodeStore } from '../node/store';
 import { Block } from '../blockchain/block';
 import { computed, onMounted } from 'vue';
 let blocks: Ref<Block[] | null> = ref(null);
 let showBlocks = ref(true);
 let mining = ref(false);
-
+const store = useNodeStore();
+const node = store.getNode;
 const lastFiveBlocks = computed(() => {
   if (!blocks.value) return;
   if (blocks.value!.length < 6) return blocks.value || [];

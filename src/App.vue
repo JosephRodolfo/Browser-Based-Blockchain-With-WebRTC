@@ -15,6 +15,14 @@
 </template>
 
 <script setup lang="ts">
+import { onBeforeMount } from 'vue';
+import { useNodeStore } from './node/store';
+onBeforeMount(() => {
+  const nodeStore = useNodeStore();
+    nodeStore.createNode();
+    nodeStore.initializeNode();
+  })
+
 
 
 </script>

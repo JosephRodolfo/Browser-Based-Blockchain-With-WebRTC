@@ -58,18 +58,18 @@ export class BlockchainNode {
     this.blockchain.addBlock(block);
 
     // broadcast the block to peers
-    await this.broadcastBlock(block);
+    // await this.broadcastBlock(block);
     // console.log(block);
     // reset pending transactions
     this.blockchain.pendingTransactions = [];
   }
 
-  private async broadcastBlock(block: Block): Promise<void> {
-    // broadcast the block to all connected peers
-    for (const peer of this.peerList) {
-      // await peer.receiveBlock(block);
-    }
-  }
+  // private async broadcastBlock(block: Block): Promise<void> {
+  //   // broadcast the block to all connected peers
+  //   for (const peer of this.peerList) {
+  //     // await peer.receiveBlock(block);
+  //   }
+  // }
 
 
   public async receiveBlock(block: Block): Promise<void> {
@@ -80,7 +80,7 @@ export class BlockchainNode {
       this.blockchain.addBlock(block);
 
       // broadcast the block to other peers
-      await this.broadcastBlock(block);
+      // await this.broadcastBlock(block);
     };
   }
 
@@ -211,7 +211,7 @@ export class BlockchainNode {
   }
 
   start() {
-    this.webRtc.createRTCPeerConnection();
+    this.webRtc.createRTCPeerConnection(this);
     this.nodeControlFlow();
   }
   stop() {
