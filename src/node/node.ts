@@ -18,6 +18,7 @@ export class BlockchainNode {
   latestBlock: Block | null;
   messageHandler: MessageHandler
   wallet: Wallet;
+  timerId: string;
 
   constructor(webRtc: WebRtc, miningRewardAdress: string, blockchain: Blockchain, messageHandler: MessageHandler, wallet: Wallet) {
     this.webRtc = webRtc;
@@ -27,6 +28,7 @@ export class BlockchainNode {
     this.messageHandler = messageHandler;
     this.wallet = wallet;
     this.miningRewardAddress = this.wallet.publicKey;
+    this.timerId = '';
   }
   get peerList() {
     return this.webRtc.peers
@@ -112,7 +114,7 @@ export class BlockchainNode {
     // Recursive call with a delay
     setTimeout(async () => {
       await this.mineBlock();
-    }, 1000);
+    }, 4000);
   }
   
 
@@ -315,22 +317,22 @@ export class BlockchainNode {
     if (this.status === 'SYNCING') {
       const intervalId = setInterval(() => {
         // console.log('getting latest block');
-        queryAllPeers(MessageType.QUERY_LATEST, { hash: '', length: this.blockchain.chain.length });
         if (this.blockchain.isChainSynced(this.latestBlock!)) {
           console.log('chain is synced')
 
           clearInterval(intervalId);
-          this.status = 'SYNCING';
+          this.status = 'PARTICIPATING';
           this.nodeControlFlow();
         } else {
           console.log('querying all peers for latest block');
           setTimeout(() => {
             queryAllPeers(MessageType.QUERY_MISSING_BLOCKS, { hash: this.blockchain.getLatestBlock()?.hash || '', length: this.blockchain.chain.length });
+            queryAllPeers(MessageType.QUERY_LATEST, { hash: '', length: this.blockchain.chain.length });
 
           }, 100);
         }
 
-      }, 4000);
+      }, 1000);
     }
     if (this.status === 'PARTICIPATING') {
       console.log('participating');

@@ -64,7 +64,7 @@ export class Blockchain {
     public isChainSynced(latestBlock: Block | null): boolean {
         const lastBlock = this.getLatestBlock();
         if (!latestBlock || !lastBlock) return false;
-        return latestBlock.hash === lastBlock.hash && latestBlock.validate(this.difficulty, lastBlock.hash);
+        return latestBlock.hash === lastBlock.hash && latestBlock.validate(this.difficulty, lastBlock.previousHash);
       
     }
 }
