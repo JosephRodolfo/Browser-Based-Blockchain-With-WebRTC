@@ -1,3 +1,4 @@
+import { Blockchain } from "./blockchain";
 import { Transaction } from "./transaction";
 import { SHA256 } from "crypto-js";
 
@@ -31,35 +32,36 @@ export class ExternalBlock {
         ).toString();
       }
   
-    public validate(difficulty: number): boolean {
+      public validate(difficulty: number, newHash: string): boolean {
         // Validate the block
         const hash = this.calculateHash();
         if (hash !== this.hash) {
           // The block's hash is incorrect
-          console.log('hash fails');
+        //   console.log('hash fails');
           return false;
         }
     
         if (this.transactions.some(tx => !tx.isValid())) {
-          console.log('transactions failed');
+        //   console.log('transactions failed');
           // A transaction in the block is invalid
           return false;
         }
-    
-        // if (this.previousHash !== this.hash) {
-        //   console.log('previous hash failed');
-        //   // The previous block's hash does not match
-        //   return false;
-        // }
+        
+          if (newHash && newHash !== this.previousHash) {
+              console.log(newHash, this.previousHash);
+          console.log('previous hash failed');
+          // The previous block's hash does not match
+          return false;
+        }
     
         if (this.timestamp <= new Date(this.timestamp.getTime() - 60000)) {
-          console.log('timestamp failed ');
+        //   console.log('timestamp failed ');
           return false;
         }
     
         const hashPrefix = '0'.repeat(difficulty);
         if (!this.hash.startsWith(hashPrefix)) {
-          console.log('difficulty failed failed');
+        //   console.log('difficulty failed failed');
     
           // The block's difficulty is invalid
           return false;

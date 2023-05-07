@@ -35,10 +35,10 @@ let mining = ref(false);
 const store = useNodeStore();
 const node = store.getNode;
 const lastFiveBlocks = computed(() => {
-  if (!blocks.value) return;
-  if (blocks.value!.length < 6) return blocks.value || [];
+  if (!node.blockchain.chain) return;
+  if (node.blockchain.chain!.length < 6) return node.blockchain.chain || [];
   // return blocks.value!.slice(blocks.value!.length - 6, blocks.value!.length - 1);
-  return blocks.value;
+  return node.blockchain.chain;
 })
 
 
@@ -51,7 +51,7 @@ onMounted(() => {
 function toggleBlocks() {
   showBlocks.value = !showBlocks.value;
 }
-function startMining() {
+async function  startMining() {
 
   if (node.blockchain.chain.length === 0) {
     const genesisBlock = node.blockchain.createGenesisBlock();
@@ -59,11 +59,7 @@ function startMining() {
     blocks.value = [genesisBlock];
   } 
 
-    x = setInterval(() => {
-      node.mineBlock();
-      blocks.value = [...node.blockchain.chain];
-
-    }, 1000);
+  await node.startMining();
 
 }
 

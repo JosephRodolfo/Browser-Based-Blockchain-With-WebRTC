@@ -34,34 +34,96 @@ export class BlockchainNode {
   get connected() {
     return this.peerList.length > 0;
   }
+  // public async mineBlock(): Promise<void> {
+  //   if (!this.blockchain) return;
+  //   const rewardTransaction = new Transaction(
+  //     "system",
+  //     this.miningRewardAddress,
+  //     this.blockchain.miningReward
+  //   );
+  //   //temporary add signature;
+  
+  //   this.blockchain.pendingTransactions.push(rewardTransaction);
+  
+  //   let block = new Block(
+  //     new Date(),
+  //     this.blockchain.pendingTransactions,
+  //     this.blockchain.getLatestBlock()!.hash
+  //   );
+  
+  //   // Check for incoming valid blocks before mining
+  //   const incomingBlock = this.receiveValidBlock();
+  //   if (incomingBlock) {
+  //     // If a valid incoming block is received, stop mining
+  //     return;
+  //   }
+  
+  //   // mine the block
+  //   await block.mineBlock(this.blockchain.difficulty);
+  
+  //   // Check for incoming valid blocks after mining
+  //   const incomingBlockAfterMining = this.receiveValidBlock();
+  //   if (incomingBlockAfterMining) {
+  //     // If a valid incoming block is received, discard the mined block
+  //     return;
+  //   }
+  
+  //   // add the block to the chain
+  //   this.blockchain.addBlock(block);
+  
+  //   // broadcast the block to peers
+  //   // await this.broadcastBlock(block);
+  //   // console.log(block);
+  //   // reset pending transactions
+  //   this.blockchain.pendingTransactions = [];
+  // }
   public async mineBlock(): Promise<void> {
     if (!this.blockchain) return;
+    
     const rewardTransaction = new Transaction(
       "system",
       this.miningRewardAddress,
       this.blockchain.miningReward
     );
-    //temporary add signature;
-
+    // temporary add signature;
     this.blockchain.pendingTransactions.push(rewardTransaction);
-
-    const block = new Block(
+  
+    let block = new Block(
       new Date(),
       this.blockchain.pendingTransactions,
       this.blockchain.getLatestBlock()!.hash
     );
-
+  
     // mine the block
     await block.mineBlock(this.blockchain.difficulty);
-
+  
+    // Check for incoming valid blocks after mining
+  
     // add the block to the chain
-    this.blockchain.addBlock(block);
-
+    this.blockchain.addBlockFromSync(block);
+  
     // broadcast the block to peers
     // await this.broadcastBlock(block);
     // console.log(block);
+  
     // reset pending transactions
     this.blockchain.pendingTransactions = [];
+  
+    // Recursive call with a delay
+    setTimeout(async () => {
+      await this.mineBlock();
+    }, 1000);
+  }
+  
+
+  async startMining() {
+    await this.mineBlock();
+  }
+    
+  
+  receiveValidBlock() {
+    return false;
+
   }
 
   // private async broadcastBlock(block: Block): Promise<void> {
@@ -77,7 +139,7 @@ export class BlockchainNode {
     // check if the block is valid
     if (block.previousHash === this.blockchain.getLatestBlock()!.hash) {
       // add the block to the chain
-      this.blockchain.addBlock(block);
+      this.blockchain.addBlockFromSync(block);
 
       // broadcast the block to other peers
       // await this.broadcastBlock(block);
@@ -150,7 +212,7 @@ export class BlockchainNode {
       })
 
     const block = new ExternalBlock(
-      new Date(parsedBlock.timestamp),
+      parsedBlock.timestamp,
       transactions,
       parsedBlock._previousHash,
       parsedBlock.nonce,
@@ -194,7 +256,9 @@ export class BlockchainNode {
         receivedBlock.hash,
       );
       console.log('validatign block', block);
-      if (block.validate(this.blockchain.difficulty)) {
+      const latestBlock = this.blockchain.getLatestBlock() || null;
+        const hash = latestBlock ? latestBlock.hash : ''
+      if (block.validate(this.blockchain.difficulty, hash)) {
         this.blockchain.addBlockFromSync(block as Block);
 
       } else {

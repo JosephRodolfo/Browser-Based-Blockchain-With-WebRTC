@@ -21,11 +21,11 @@ export class Blockchain {
 
     public getLatestBlock(): Block | null {
         if (this.chain.length > 0) {
-          return this.chain[this.chain.length - 1];
+            return this.chain[this.chain.length - 1];
         } else {
-          return null;
+            return null;
         }
-      }
+    }
       
     public addBlock(newBlock: Block): void {
         newBlock.previousHash = this.getLatestBlock()?.hash || '0';
@@ -64,7 +64,7 @@ export class Blockchain {
     public isChainSynced(latestBlock: Block | null): boolean {
         const lastBlock = this.getLatestBlock();
         if (!latestBlock || !lastBlock) return false;
-        return latestBlock.hash === lastBlock.hash && latestBlock.validate(this.difficulty);
-      }
+        return latestBlock.hash === lastBlock.hash && latestBlock.validate(this.difficulty, lastBlock.hash);
       
+    }
 }
