@@ -3,6 +3,7 @@
     <h1>Dashboard</h1>
     <p>This is the Dashboard page.</p>
     <p>Status: {{ node.status }}</p>
+    <p>Balance: {{ balance }}</p>
     <p>Connected: {{ node.connected }}</p>
     <p v-if="node.peerList.length > 0">Peers: {{ node.peerList.map(({ id }) => id).join(', ') }}</p>
     <button @click="toggleBlocks">Toggle Blocks</button>
@@ -41,6 +42,9 @@ const lastFiveBlocks = computed(() => {
   return node.blockchain.chain;
 })
 
+const balance = computed(() => {
+  return node.balance;
+})
 
 let x: any;
 onMounted(() => {

@@ -53,7 +53,6 @@ export class ExternalBlock {
           // The previous block's hash does not match
           return false;
         }
-        console.log('failed', this);
         if (new Date(this.timestamp) <= new Date(new Date(this.timestamp).getTime() - 60000)) {
         //   console.log('timestamp failed ');
           return false;

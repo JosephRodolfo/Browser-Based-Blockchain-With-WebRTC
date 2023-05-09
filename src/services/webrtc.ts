@@ -145,7 +145,7 @@ export class WebRtc {
         const peer = this.peers.find(({ id }) => id === peerId);
         if (peer!.dataChannel!.readyState === "open") {
             try {
-                peer!.dataChannel!.send(JSON.stringify({ data, type: messageType }));
+              await peer!.dataChannel!.send(JSON.stringify({ data, type: messageType }));
                 this.messages.push({ data, type: messageType });
 
             } catch (error) {

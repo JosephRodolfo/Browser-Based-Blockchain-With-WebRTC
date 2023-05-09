@@ -11,7 +11,7 @@ export class Blockchain {
     constructor(difficulty: number) {
         this.chain = [];
         this.difficulty = difficulty;
-        this.miningReward = 0;
+        this.miningReward = .01;
         this.pendingTransactions = [];
     }
 

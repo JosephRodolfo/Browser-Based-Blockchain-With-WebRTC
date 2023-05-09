@@ -30,55 +30,15 @@ export class BlockchainNode {
     this.miningRewardAddress = this.wallet.publicKey;
     this.timerId = '';
   }
+  get balance() {
+    return this.wallet.calculateBalance(this.blockchain, this.miningRewardAddress);
+  }
   get peerList() {
     return this.webRtc.peers
   }
   get connected() {
     return this.peerList.length > 0;
   }
-  // public async mineBlock(): Promise<void> {
-  //   if (!this.blockchain) return;
-  //   const rewardTransaction = new Transaction(
-  //     "system",
-  //     this.miningRewardAddress,
-  //     this.blockchain.miningReward
-  //   );
-  //   //temporary add signature;
-  
-  //   this.blockchain.pendingTransactions.push(rewardTransaction);
-  
-  //   let block = new Block(
-  //     new Date(),
-  //     this.blockchain.pendingTransactions,
-  //     this.blockchain.getLatestBlock()!.hash
-  //   );
-  
-  //   // Check for incoming valid blocks before mining
-  //   const incomingBlock = this.receiveValidBlock();
-  //   if (incomingBlock) {
-  //     // If a valid incoming block is received, stop mining
-  //     return;
-  //   }
-  
-  //   // mine the block
-  //   await block.mineBlock(this.blockchain.difficulty);
-  
-  //   // Check for incoming valid blocks after mining
-  //   const incomingBlockAfterMining = this.receiveValidBlock();
-  //   if (incomingBlockAfterMining) {
-  //     // If a valid incoming block is received, discard the mined block
-  //     return;
-  //   }
-  
-  //   // add the block to the chain
-  //   this.blockchain.addBlock(block);
-  
-  //   // broadcast the block to peers
-  //   // await this.broadcastBlock(block);
-  //   // console.log(block);
-  //   // reset pending transactions
-  //   this.blockchain.pendingTransactions = [];
-  // }
   public async mineBlock(): Promise<void> {
     if (!this.blockchain) return;
     
@@ -97,7 +57,11 @@ export class BlockchainNode {
     );
   
     // mine the block
-    await block.mineBlock(this.blockchain.difficulty);
+    try {
+      await block.mineBlock(this.blockchain.difficulty);
+    } catch {
+      console.log('MINING BLOCK FAILED');
+    }
   
     // Check for incoming valid blocks after mining
   
@@ -105,7 +69,7 @@ export class BlockchainNode {
     this.blockchain.addBlockFromSync(block);
   
     // broadcast the block to peers
-    // await this.broadcastBlock(block);
+    await this.broadcastBlock(block);
     // console.log(block);
   
     // reset pending transactions
@@ -128,25 +92,54 @@ export class BlockchainNode {
 
   }
 
-  // private async broadcastBlock(block: Block): Promise<void> {
-  //   // broadcast the block to all connected peers
-  //   for (const peer of this.peerList) {
-  //     // await peer.receiveBlock(block);
-  //   }
-  // }
-
-
-  public async receiveBlock(block: Block): Promise<void> {
-    if (!this.blockchain) return;
-    // check if the block is valid
-    if (block.previousHash === this.blockchain.getLatestBlock()!.hash) {
-      // add the block to the chain
-      this.blockchain.addBlockFromSync(block);
-
-      // broadcast the block to other peers
-      // await this.broadcastBlock(block);
-    };
+  private async broadcastBlock(block: Block): Promise<void> {
+    // broadcast the block to all connected peers
+    for (const peer of this.peerList) {
+      await this.webRtc.sendBlockchainMessage(MessageType.BROADCAST_BLOCK, JSON.stringify({ block, length }), peer.id);
+    }
   }
+  public async handleBroadcastedBlock(peerId: string, data: string) {
+    console.log('handling broadcastedblock')
+    const { length, block: receivedBlock } = JSON.parse(data);
+    const transactions: Transaction[] = receivedBlock.transactions.map((el: Transaction) => {
+
+      const transaction = new Transaction(el.fromAddress, el.toAddress, el.amount);    
+      return transaction;
+
+    })
+    const block = new ExternalBlock(
+      new Date(receivedBlock.timestamp),
+      transactions,
+      receivedBlock._previousHash,
+      receivedBlock.nonce,
+      receivedBlock.hash,
+    );
+   
+    const latestBlock = this.blockchain.getLatestBlock() || null;
+    const hash = latestBlock ? latestBlock.hash : ''
+  if (block.validate(this.blockchain.difficulty, hash)) {
+    this.blockchain.addBlockFromSync(block as Block);
+    console.log('Broadcasted Block valid')
+
+  } else {
+    console.log('Broadcasted Block block not valid');
+    return;
+  }
+
+  }
+
+
+  // public async receiveBlock(block: Block): Promise<void> {
+  //   if (!this.blockchain) return;
+  //   // check if the block is valid
+  //   if (block.previousHash === this.blockchain.getLatestBlock()!.hash) {
+  //     // add the block to the chain
+  //     this.blockchain.addBlockFromSync(block);
+
+  //     // broadcast the block to other peers
+  //     // await this.broadcastBlock(block);
+  //   };
+  // }
 
   async handleQueryAll(peerId: string, messageType: MessageType) {
     console.log('calling handleQuery all', peerId, messageType);
@@ -159,6 +152,22 @@ export class BlockchainNode {
       console.log(`Error sending blockchain to peer ${peerId}`);
     }
   }
+  async handleQueryAllChunked(peerId: string, messageType: MessageType) {  
+    try {
+      const blockchain = this.blockchain.chain;
+      const chunkSize = 20;
+  
+      for (let i = 0; i < blockchain.length; i += chunkSize) {
+        const chunk = blockchain.slice(i, i + chunkSize);
+  
+        await this.webRtc.sendBlockchainMessage(messageType, JSON.stringify({blockchain: chunk, length: blockchain.length}), peerId);
+      }
+      } catch (error) {
+      console.log(`Error sending blockchain to peer ${peerId}:`, error);
+    }
+  }
+  
+  
   async handleQueryLatest(peerId: string, messageType: MessageType) {
     if (!this.blockchain) return;
     try {
@@ -168,6 +177,38 @@ export class BlockchainNode {
       console.log(`error sending latest block to peer ${peerId}`);
     }
 
+  }
+
+  async handleBlockchainResponseChunked(peerId: string, blockChain: string) {
+    const parsed = JSON.parse(blockChain).blockchain;
+    const blockchain = new Blockchain(parsed.difficulty);
+    blockchain.miningReward = parsed.miningReward;
+    blockchain.pendingTransactions = parsed.pendingTransactions;
+
+    // Create an array to hold the converted blocks
+
+    // Loop through each block in the received chain and convert it
+
+
+    for (const blockData of parsed.chain) {
+      const block = new Block(
+        new Date(blockData.timestamp),
+        blockData.transactions,
+        blockData.previousHash
+      );
+      block.hash = blockData.hash;
+      block.nonce = blockData.nonce;
+      blockchain.addBlockFromSync(block);
+    }
+
+    if (blockchain.isChainValid() && blockchain.chain.length > 0) {
+      console.log(`chain from peer ${peerId} is valid`);
+
+      this.blockchain = blockchain;
+
+    } else {
+      console.log(`chain from peer ${peerId} is invalid`);
+    }
   }
 
   async handleBlockchainResponse(peerId: string, blockChain: string) {
@@ -302,7 +343,7 @@ export class BlockchainNode {
         // return;
       }
       const intervalId = setInterval(async () => {
-        console.log('querying', this.blockchain.chain.length);
+        // console.log('querying', this.blockchain.chain.length);
 
         if (this.blockchain.isChainValid() && this.blockchain.chain.length > 0) {
           console.log('syncing', this.blockchain.chain.length);
@@ -335,8 +376,8 @@ export class BlockchainNode {
       }, 1000);
     }
     if (this.status === 'PARTICIPATING') {
-      console.log('participating');
-            }
+      this.mineBlock();
+    }
   }
 
 

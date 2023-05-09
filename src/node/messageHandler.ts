@@ -13,6 +13,7 @@ export enum MessageType {
   TEXT_MESSAGE,
   QUERY_MISSING_BLOCKS,
   RESPONSE_MISSING_BLOCKS,
+  BROADCAST_BLOCK,
 }
 
 export interface Message {
@@ -29,8 +30,15 @@ export class MessageHandler {
   public handleMessage(node: BlockchainNode, message: Message, peerId: string): void {
     const parsed = JSON.parse(message.data as string);
 
-    console.log(message.type);
+    // console.log(message.type);
     const isPeerBehind = parsed.length < node.blockchain.chain.length;
+    const isMoreThanOneBlockBehind = parsed.length - node.blockchain.chain.length > 1;
+    if (isPeerBehind) {
+     if(node.status === 'SYNCING' && node.blockchain.chain.length > 0 && !isPeerBehind) node.status = 'PARTICIPATING'
+    }
+    if (isMoreThanOneBlockBehind && node.status === 'PARTICIPATING') {
+      node.status = 'SYNCING';
+    }
     switch (message.type) {
       case MessageType.QUERY_LATEST:
         if (!isPeerBehind) {
@@ -77,6 +85,11 @@ export class MessageHandler {
         } else
           node.handleResponseMissingBlocks(peerId, message.data as string);
         break;
+      case MessageType.BROADCAST_BLOCK:
+        if (node.status === 'PARTICIPATING' && isPeerBehind) {       
+          node.handleBroadcastedBlock(peerId, message.data as string);
+        }
+          break;
       // case MessageType.INVALID_TRANSACTION:
       //   this.node.handleInvalidTransaction(message.data as Transaction, peerId);
       //   break;
